@@ -1,15 +1,28 @@
 import { useState } from "react";
 
 function Board() {
+  const [xIsNext, setXIsNext] = useState(true);
   // 親コンポーネントのBoardでuseStateすることで、九個の盤面の状態をまとめて管理が可能。
   const [squares, setSquares] = useState(Array(9).fill(null));
 
   // イベントを処理するハンドラ関数の定義には handleSomething という名前を使う
   function handleClick(i) {
+    if (squares[i]) {
+      return;
+    }
+
+    // 直接値を変えない(イミュータビリティ)をすることで、「タイムトラベル」を実装できる。
     const nextSquares = squares.slice();
-    nextSquares[i] = "X";
+
+    if (xIsNext) {
+      nextSquares[i] = "X";
+    } else {
+      nextSquares[i] = "O";
+    }
+
     // setSquaresをすることで、コンポーネントが再レンダーされる。
     setSquares(nextSquares);
+    setXIsNext(!xIsNext);
   }
 
   return (
