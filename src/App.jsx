@@ -1,63 +1,5 @@
 import { useState } from "react";
 
-function Board() {
-  // 次どちらが手番か管理するstate
-  const [xIsNext, setXIsNext] = useState(true);
-  // 親コンポーネントのBoardでuseStateすることで、九個の盤面の状態をまとめて管理が可能。
-  const [squares, setSquares] = useState(Array(9).fill(null));
-
-  // イベントを処理するハンドラ関数の定義には handleSomething という名前を使う
-  // もう値が入力されているマス押下時と勝負が決まっている時は早期リターンを行っている。
-  function handleClick(i) {
-    if (squares[i] || calculateWinner(squares)) {
-      return;
-    }
-
-    // 直接値を変えない(イミュータビリティ)をすることで、「タイムトラベル」を実装できる。
-    const nextSquares = squares.slice();
-
-    if (xIsNext) {
-      nextSquares[i] = "X";
-    } else {
-      nextSquares[i] = "O";
-    }
-
-    // setSquaresをすることで、コンポーネントが再レンダーされる。
-    setSquares(nextSquares);
-    setXIsNext(!xIsNext);
-  }
-
-  const winner = calculateWinner(squares);
-  let status;
-
-  if (winner) {
-    status = "Winner: " + winner;
-  } else {
-    status = "Next Player: " + (xIsNext ? "x" : "O");
-  }
-
-  return (
-    <>
-      <div className="status">{status}</div>
-      <div className="board-row">
-        <Square value={squares[0]} onSquareClick={() => handleClick(0)} />
-        <Square value={squares[1]} onSquareClick={() => handleClick(1)} />
-        <Square value={squares[2]} onSquareClick={() => handleClick(2)} />
-      </div>
-      <div className="board-row">
-        <Square value={squares[3]} onSquareClick={() => handleClick(3)} />
-        <Square value={squares[4]} onSquareClick={() => handleClick(4)} />
-        <Square value={squares[5]} onSquareClick={() => handleClick(5)} />
-      </div>
-      <div className="board-row">
-        <Square value={squares[6]} onSquareClick={() => handleClick(6)} />
-        <Square value={squares[7]} onSquareClick={() => handleClick(7)} />
-        <Square value={squares[8]} onSquareClick={() => handleClick(8)} />
-      </div>
-    </>
-  );
-}
-
 function calculateWinner(squares) {
   // 勝利のマスのパターンを格納する配列
   const lines = [
@@ -94,4 +36,86 @@ function Square({ value, onSquareClick }) {
   );
 }
 
-export default Board;
+function Board({ xIsNext, squares, onPlay }) {
+  // イベントを処理するハンドラ関数の定義には handleSomething という名前を使う
+  // もう値が入力されているマス押下時と勝負が決まっている時は早期リターンを行っている。
+  function handleClick(i) {
+    if (squares[i] || calculateWinner(squares)) {
+      return;
+    }
+
+    // 直接値を変えない(イミュータビリティ)をすることで、「タイムトラベル」を実装できる。
+    const nextSquares = squares.slice();
+
+    if (xIsNext) {
+      nextSquares[i] = "X";
+    } else {
+      nextSquares[i] = "O";
+    }
+
+    // ユーザがマス目をクリックしたときに、Game コンポーネントが Board を更新
+    onPlay(nextSquares);
+  }
+
+  const winner = calculateWinner(squares);
+  let status;
+
+  if (winner) {
+    status = "Winner: " + winner;
+  } else {
+    status = "Next Player: " + (xIsNext ? "x" : "O");
+  }
+
+  return (
+    <>
+      <div className="status">{status}</div>
+      <div className="board-row">
+        <Square value={squares[0]} onSquareClick={() => handleClick(0)} />
+        <Square value={squares[1]} onSquareClick={() => handleClick(1)} />
+        <Square value={squares[2]} onSquareClick={() => handleClick(2)} />
+      </div>
+      <div className="board-row">
+        <Square value={squares[3]} onSquareClick={() => handleClick(3)} />
+        <Square value={squares[4]} onSquareClick={() => handleClick(4)} />
+        <Square value={squares[5]} onSquareClick={() => handleClick(5)} />
+      </div>
+      <div className="board-row">
+        <Square value={squares[6]} onSquareClick={() => handleClick(6)} />
+        <Square value={squares[7]} onSquareClick={() => handleClick(7)} />
+        <Square value={squares[8]} onSquareClick={() => handleClick(8)} />
+      </div>
+    </>
+  );
+}
+
+function Game() {
+  // 次どちらが手番か管理するstate
+  const [xIsNext, setXIsNext] = useState(true);
+  // 親コンポーネントのGameでuseStateすることで、九個の盤面の状態+履歴をまとめて管理が可能。
+  // historyには、配列であり、要素(履歴)も配列で入る。
+  const [history, setHistory] = useState([Array(9).fill(null)]);
+
+  // 現在の盤面をレンダーする為に、最後の要素を取り出している。
+  const currentSquares = history[history.length - 1];
+
+  // イベントを処理するハンドラ関数の定義には handleSomething という名前を使う
+  // ゲーム内容を更新するために Board コンポーネントから呼ばれる
+  function handlePlay(nextSquares) {
+    // ...(スプレッド構文)を利用することで、イミュータブルな方法で元のhistoryを直接変更させない。
+    setHistory([...history, nextSquares]);
+    setXIsNext(!xIsNext);
+  }
+
+  return (
+    <div className="game">
+      <div className="game-board">
+        <Board xIsNext={xIsNext} squares={currentSquares} onPlay={handlePlay} />
+      </div>
+      <div className="game-info">
+        <ol>{/*TODO*/}</ol>
+      </div>
+    </div>
+  );
+}
+
+export default Game;
