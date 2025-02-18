@@ -19,108 +19,125 @@ function calculateWinner(squares) {
     // "X"か"O"のどちらかで勝利のパターンのマスが埋められているか判定する式
     if (squares[a] && squares[a] === squares[b] && squares[a] === squares[c]) {
       // 勝った"X"か"O"を返す。
-      return squares[a];
+      return { winner: squares[a], winningSquares: [a, b, c] };
     }
   }
 
+  if (!squares.includes(null)) {
+    return { winner: "Draw", winningSquares: [] };
+  }
+
   // 勝負が決まっていない時はnullを返す。
-  return null;
+  return { winner: null, winningSquares: [] };
 }
 
 // イベントを表す props には onSomething という名前を使う
-function Square({ value, onSquareClick }) {
+function Square({ value, onSquareClick, isWinningSquare }) {
   return (
-    <button className="square" onClick={onSquareClick}>
+    <button
+      className={`square ${isWinningSquare ? "highlight" : ""}`}
+      onClick={onSquareClick}
+    >
       {value}
     </button>
   );
 }
 
 function Board({ xIsNext, squares, onPlay }) {
-  // イベントを処理するハンドラ関数の定義には handleSomething という名前を使う
-  // もう値が入力されているマス押下時と勝負が決まっている時は早期リターンを行っている。
   function handleClick(i) {
-    if (squares[i] || calculateWinner(squares)) {
+    if (squares[i] || calculateWinner(squares).winner) {
       return;
     }
-
-    // 直接値を変えない(イミュータビリティ)をすることで、「タイムトラベル」を実装できる。
     const nextSquares = squares.slice();
-
-    if (xIsNext) {
-      nextSquares[i] = "X";
-    } else {
-      nextSquares[i] = "O";
-    }
-
-    // ユーザがマス目をクリックしたときに、Game コンポーネントが Board を更新
-    onPlay(nextSquares);
+    nextSquares[i] = xIsNext ? "X" : "O";
+    onPlay(nextSquares, i); // ここでクリックしたマスのインデックスを渡す
   }
 
-  const winner = calculateWinner(squares);
+  const { winner, winningSquares } = calculateWinner(squares);
   let status;
-
-  if (winner) {
+  if (winner === "Draw") {
+    status = "Draw!";
+  } else if (winner) {
     status = "Winner: " + winner;
   } else {
-    status = "Next Player: " + (xIsNext ? "x" : "O");
+    status = "Next Player: " + (xIsNext ? "X" : "O");
+  }
+
+  const rows = [];
+  for (let row = 0; row < 3; row++) {
+    const squaresRow = [];
+    for (let col = 0; col < 3; col++) {
+      const index = row * 3 + col;
+      squaresRow.push(
+        <Square
+          key={index}
+          value={squares[index]}
+          onSquareClick={() => handleClick(index)}
+          isWinningSquare={winningSquares.includes(index)}
+        />
+      );
+    }
+    rows.push(
+      <div key={row} className="board-row">
+        {squaresRow}
+      </div>
+    );
   }
 
   return (
     <>
       <div className="status">{status}</div>
-      <div className="board-row">
-        <Square value={squares[0]} onSquareClick={() => handleClick(0)} />
-        <Square value={squares[1]} onSquareClick={() => handleClick(1)} />
-        <Square value={squares[2]} onSquareClick={() => handleClick(2)} />
-      </div>
-      <div className="board-row">
-        <Square value={squares[3]} onSquareClick={() => handleClick(3)} />
-        <Square value={squares[4]} onSquareClick={() => handleClick(4)} />
-        <Square value={squares[5]} onSquareClick={() => handleClick(5)} />
-      </div>
-      <div className="board-row">
-        <Square value={squares[6]} onSquareClick={() => handleClick(6)} />
-        <Square value={squares[7]} onSquareClick={() => handleClick(7)} />
-        <Square value={squares[8]} onSquareClick={() => handleClick(8)} />
-      </div>
+      {rows}
     </>
   );
 }
 
 function Game() {
-  // 次どちらが手番か管理するstate
-  const [xIsNext, setXIsNext] = useState(true);
-  // 親コンポーネントのGameでuseStateすることで、九個の盤面の状態+履歴をまとめて管理が可能。
-  // historyには、配列であり、要素(履歴)も配列で入る。
-  const [history, setHistory] = useState([Array(9).fill(null)]);
-  // 現在の盤面をレンダーする為に、最後の要素を取り出している。
-  const currentSquares = history[history.length - 1];
+  const [history, setHistory] = useState([
+    { squares: Array(9).fill(null), location: null },
+  ]);
+  const [currentMove, setCurrentMove] = useState(0);
+  const [isAscending, setIsAscending] = useState(true);
 
-  // イベントを処理するハンドラ関数の定義には handleSomething という名前を使う
-  // ゲーム内容を更新するために Board コンポーネントから呼ばれる
-  function handlePlay(nextSquares) {
-    // ...(スプレッド構文)を利用することで、イミュータブルな方法で元のhistoryを直接変更させない。
-    setHistory([...history, nextSquares]);
-    setXIsNext(!xIsNext);
+  const xIsNext = currentMove % 2 === 0;
+  const currentSquares = history[currentMove].squares;
+
+  function handlePlay(nextSquares, index) {
+    const row = Math.floor(index / 3) + 1; // 1-based index
+    const col = (index % 3) + 1; // 1-based index
+    const nextHistory = [
+      ...history.slice(0, currentMove + 1),
+      { squares: nextSquares, location: `(${row}, ${col})` },
+    ];
+    setHistory(nextHistory);
+    setCurrentMove(nextHistory.length - 1);
   }
 
-  function jumpTo(nextMove) {}
+  function jumpTo(nextMove) {
+    setCurrentMove(nextMove);
+  }
 
-  const moves = history.map((squares, move) => {
-    let description;
-    if (move > 0) {
-      description = "Go to move #" + move;
+  function toggleSortOrder() {
+    setIsAscending(!isAscending);
+  }
+
+  let moves = history.map((step, move) => {
+    if (move === currentMove) {
+      return <li key={move}>You are at move #{move}</li>;
     } else {
-      description = "Go to game start";
+      const description =
+        move > 0 ? `Go to move #${move} ${step.location}` : "Go to game start";
+      return (
+        <li key={move}>
+          <button onClick={() => jumpTo(move)}>{description}</button>
+        </li>
+      );
     }
-
-    return (
-      <li>
-        <button onClick={() => jumpTo(move)}>{description}</button>
-      </li>
-    );
   });
+
+  if (!isAscending) {
+    moves.reverse();
+  }
 
   return (
     <div className="game">
@@ -128,6 +145,9 @@ function Game() {
         <Board xIsNext={xIsNext} squares={currentSquares} onPlay={handlePlay} />
       </div>
       <div className="game-info">
+        <button onClick={toggleSortOrder}>
+          {isAscending ? "Sort Descending" : "Sort Ascending"}
+        </button>
         <ol>{moves}</ol>
       </div>
     </div>
